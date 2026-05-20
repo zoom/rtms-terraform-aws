@@ -1,8 +1,6 @@
 # RTMS on AWS — Terraform Template
 
-Deploy a scalable Zoom **Real-Time Media Streaming (RTMS)** consumer to AWS in one command. Same shape as the [`rtms-quickstart-py`](https://github.com/zoom/rtms-quickstart-py) repo — `@rtms.on_webhook_event` + `rtms.run()` — packaged into a Fargate container, fronted by an ALB, and configured to auto-scale.
-
-The only demo-relevant additions on top of the quickstart are `rtms.EventLoopPool` (many concurrent meetings per container) and a `ThreadPoolExecutor` (transcript uploads don't block the SDK poll loop). That's the entire scalability story — the SDK does the rest.
+Deploy a scalable Zoom **RealTime Media Streaming (RTMS)** consumer to AWS in one command. Same shape as the [`rtms-quickstart-py`](https://github.com/zoom/rtms-quickstart-py) repo — `@rtms.on_webhook_event` + `rtms.run()` — packaged into a Fargate container, fronted by an ALB, and configured to auto-scale.
 
 ---
 
@@ -21,7 +19,24 @@ Zoom ──webhook──▶  ALB (HTTPS, ACM cert)  ──▶  ECS Fargate Servi
 
 Each task runs `worker/main.py`, which uses `@rtms.on_webhook_event` to receive Zoom webhooks on port 8080 and `rtms.EventLoopPool(threads=2)` to host the active meetings. The ECS service auto-scales on CPU.
 
-See [spec.md](spec.md) for full design, acceptance criteria, and non-production disclosures.
+---
+
+### Prerequisites
+
+Tools (one-time install):
+
+```bash
+brew install awscli terraform jq            # macOS
+# Linux: use your package manager equivalents
+```
+
+Then `aws configure` (or `aws sso login`) once so the CLI is authenticated. No Docker required — the default `worker_image` pulls a pre-built public image.
+
+Accounts / external assets:
+
+- **AWS account** with admin access. `us-east-1` is the default deploy region.
+- **A domain you control** (Route 53 preferred, but any provider works — see DNS modes below).
+- **Zoom Marketplace RTMS app** with Client ID, Client Secret, and Webhook Secret Token. Events subscribed: `endpoint.url_validation`, `meeting.rtms_started`, `meeting.rtms_stopped`, `meeting.rtms_interrupted`.
 
 ---
 
@@ -51,30 +66,12 @@ Re-running `./deploy.sh` is safe — it preserves your `terraform.tfvars`, skips
 | Zoom Webhook Secret Token | Same |
 | Budget alert email | For the AWS Budgets 80% notification |
 
-### Prerequisites
 
-Tools (one-time install):
-
-```bash
-brew install awscli terraform jq            # macOS
-# Linux: use your package manager equivalents
-```
-
-Then `aws configure` (or `aws sso login`) once so the CLI is authenticated. No Docker required — the default `worker_image` pulls a pre-built public image.
-
-Accounts / external assets:
-
-- **AWS account** with admin access. `us-east-1` is the default deploy region.
-- **A domain you control** (Route 53 preferred, but any provider works — see DNS modes below).
-- **Zoom Marketplace RTMS app** with Client ID, Client Secret, and Webhook Secret Token. Events subscribed: `endpoint.url_validation`, `meeting.rtms_started`, `meeting.rtms_stopped`, `meeting.rtms_interrupted`.
-
-> This template needs RTMS join-handshake credentials only. It does **not** call the Zoom REST API, so no Server-to-Server OAuth account ID is required.
 
 ### Prefer to run each step manually?
 
 See [docs/MANUAL_SETUP.md](docs/MANUAL_SETUP.md) for the step-by-step walkthrough that `deploy.sh` automates.
 
----
 
 ## DNS modes
 
@@ -224,7 +221,7 @@ Force-empties the S3 bucket, runs `terraform destroy`, and verifies no orphaned 
 
 ## Failure Modes & Trade-offs (v1)
 
-This is a **sales-demo / POC reference**, not a production-hardened deployment. Key trade-offs you should know about:
+This is a **POC reference**, not a production-hardened deployment. Key trade-offs you should know about:
 
 ### What the worker handles (RTMS-level reconnection)
 
