@@ -205,8 +205,6 @@ aws ecs list-tasks --cluster rtms-demo-cluster
 aws ecs stop-task --cluster rtms-demo-cluster --task <task-arn>
 ```
 
-Step-by-step against each acceptance criterion in [spec.md → Testing Strategy](spec.md).
-
 ---
 
 ## Teardown
@@ -248,7 +246,6 @@ Reference: [zoom/rtms-samples/rtms_api/reconnection_and_chaos_mode_js](https://g
 - **One S3 PUT per transcript chunk.** Simple to reason about, but produces lots of small objects. Production fix: buffer ~30s in memory and PUT a multi-line JSONL, or stream to Kinesis Firehose.
 - **In-process webhook dedup.** Resets on task restart. Cross-task dedup would need DynamoDB or ElastiCache — but the rtms SDK rejects duplicate joins anyway, so this is belt-and-suspenders.
 
-Full list and production fixes in [spec.md → Non-Production Disclosures](spec.md).
 
 ---
 
@@ -275,7 +272,6 @@ Set `zoom_host = "https://zoomgov.com"` in `terraform.tfvars`. The worker maps U
 rtms-terraform-aws/
 ├── deploy.sh                # one-command guided setup
 ├── README.md                # this file
-├── spec.md                  # full design + acceptance criteria
 ├── docs/
 │   └── MANUAL_SETUP.md      # step-by-step walkthrough (what deploy.sh automates)
 ├── terraform.tfvars.example # all inputs documented
