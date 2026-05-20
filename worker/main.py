@@ -417,28 +417,37 @@ def process_webhook(webhook: dict, request=None, response=None) -> None:
         sig_valid = verify_signature(_canonical_body(webhook), ts, sig)
 
         if not sig_valid:
-            # Detailed diagnostic so we can tell whether the secret is wrong,
-            # the encoding is wrong, or the timestamp drifted. We never log
-            # the full webhook secret — just its length and first/last chars.
-            canonical  = _canonical_body(webhook)
-            signing_msg = b"v0:" + ts.encode() + b":" + canonical
-            computed   = "v0=" + hmac.new(
-                WEBHOOK_SECRET.encode(), signing_msg, hashlib.sha256,
-            ).hexdigest()
-            secret_hint = (
-                f"len={len(WEBHOOK_SECRET)} "
-                f"prefix={WEBHOOK_SECRET[:2]!r} suffix={WEBHOOK_SECRET[-2:]!r}"
-                if WEBHOOK_SECRET else "EMPTY"
-            )
+            # Plain WARN — never includes secret material or the body. Safe to
+            # leave on at INFO/WARN in production because attacker probes also
+            # land here and we don't want to echo back forged payloads.
             log.warning("signature invalid — rejecting with 401",
-                        extra={"request_id":   request_id,
-                               "sig_present":  bool(sig),
-                               "sig_valid":    False,
-                               "action":       "reject_401",
-                               "status":       f"expected={sig} computed={computed} "
+                        extra={"request_id":  request_id,
+                               "sig_present": bool(sig),
+                               "sig_valid":   False,
+                               "action":      "reject_401"})
+
+            # Diagnostic dump (computed sig, body, secret length+prefix/suffix)
+            # is gated to DEBUG. Only enable locally when chasing a real bug.
+            # Never enable in production — attacker probes hit this path and
+            # logged details would echo their forged payloads back.
+            if log.isEnabledFor(logging.DEBUG):
+                canonical   = _canonical_body(webhook)
+                signing_msg = b"v0:" + ts.encode() + b":" + canonical
+                computed    = "v0=" + hmac.new(
+                    WEBHOOK_SECRET.encode(), signing_msg, hashlib.sha256,
+                ).hexdigest()
+                secret_hint = (
+                    f"len={len(WEBHOOK_SECRET)} "
+                    f"prefix={WEBHOOK_SECRET[:2]!r} suffix={WEBHOOK_SECRET[-2:]!r}"
+                    if WEBHOOK_SECRET else "EMPTY"
+                )
+                log.debug("signature mismatch diagnostic",
+                          extra={"request_id": request_id,
+                                 "status":     f"expected={sig} computed={computed} "
                                                f"ts={ts} body_len={len(canonical)} "
                                                f"secret({secret_hint}) "
                                                f"body={canonical.decode('utf-8', 'replace')}"})
+
             response.set_status(401)
             response.send({"error": "unauthorized"})
             return

@@ -49,3 +49,21 @@ resource "aws_lb_listener" "https" {
     target_group_arn = aws_lb_target_group.worker.arn
   }
 }
+
+# Port 80 listener — issues a 301 to the equivalent https:// URL.
+# Misconfigured callers (http:// instead of https://) get a loud redirect
+# rather than a connection refused. We never forward HTTP to the worker.
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.this.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      protocol    = "HTTPS"
+      port        = "443"
+      status_code = "HTTP_301"
+    }
+  }
+}

@@ -55,6 +55,17 @@ resource "aws_security_group" "alb" {
     description = "HTTPS from anywhere (Zoom webhooks)"
   }
 
+  # Port 80 open so the ALB can return a loud 301 to https:// rather than
+  # silently dropping misconfigured callers. The port-80 listener never proxies
+  # traffic to the worker — it only issues redirects.
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP from anywhere (redirected to HTTPS by the listener)"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
