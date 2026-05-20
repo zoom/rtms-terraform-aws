@@ -10,7 +10,6 @@ terraform.tfvars.bak*
 *.bak.[0-9]*
 
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
