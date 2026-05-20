@@ -1,0 +1,105 @@
+# Example terraform.tfvars for the RTMS-on-AWS template.
+#
+# Copy to `terraform.tfvars` and fill in. `terraform.tfvars` is gitignored.
+#
+# Credentials are NEVER stored here — only the ARNs of pre-created
+# Secrets Manager secrets. The worker only uses these for the RTMS join
+# handshake; no Zoom REST API access, so no Server-to-Server OAuth account
+# ID is required.
+#
+# Create the secrets out-of-band with:
+#
+#   aws secretsmanager create-secret --name rtms/zm-rtms-client         --secret-string '...'
+#   aws secretsmanager create-secret --name rtms/zm-rtms-secret         --secret-string '...'
+#   aws secretsmanager create-secret --name rtms/zm-rtms-webhook-secret --secret-string '...'
+
+# --- Identity / region ---
+aws_region   = "us-east-1"
+project_name = "rtms-demo"
+environment  = "demo"  # one of: demo, staging, prod
+
+# --- Pre-created Secrets Manager ARNs ---
+zm_rtms_client_secret_arn          = "arn:aws:secretsmanager:us-east-1:123456789012:secret:rtms/zm-rtms-client-AbCdEf"
+zm_rtms_secret_secret_arn          = "arn:aws:secretsmanager:us-east-1:123456789012:secret:rtms/zm-rtms-secret-AbCdEf"
+zm_rtms_webhook_secret_secret_arn  = "arn:aws:secretsmanager:us-east-1:123456789012:secret:rtms/zm-rtms-webhook-secret-AbCdEf"
+
+# --- TLS / DNS ---
+#
+# Two modes:
+#
+#   dns_mode = "route53"  (default, recommended)
+#       Your domain is hosted in Route 53. Terraform issues + DNS-validates the
+#       ACM cert and creates the ALB ALIAS record automatically. You only set
+#       route53_zone_id below.
+#       Find your zone ID:
+#         aws route53 list-hosted-zones --query "HostedZones[?Name=='example.com.'].Id" --output text
+#
+#   dns_mode = "external"
+#       Your DNS lives elsewhere (Squarespace, Cloudflare, GoDaddy, etc.). You
+#       pre-issue the ACM cert, validate it manually via your DNS provider, and
+#       paste the ARN below. After `terraform apply`, you point your DNS at the
+#       alb_dns_name output yourself.
+
+webhook_domain = "rtms.example.com"
+
+dns_mode        = "route53"
+route53_zone_id = "Z01234567ABCDEFGH"
+# acm_certificate_arn = null   # ignored when dns_mode = "route53"
+
+# --- For dns_mode = "external" (manual DNS) ---
+# dns_mode            = "external"
+# acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/abcd-1234-..."
+# route53_zone_id     = null   # ignored when dns_mode = "external"
+
+# --- Zoom host (commercial or government) ---
+zoom_host = "https://zoom.us"  # set to "https://zoomgov.com" for ZfG
+
+# --- Worker container image ---
+# Default points at a public ECR image — no Docker / build step needed.
+# Override with your own ECR URI if you want to ship a customized worker.
+worker_image = "public.ecr.aws/t3b9e0y5/rtms-worker:1.1.0"
+
+# --- Networking ---
+vpc_cidr             = "10.42.0.0/16"
+availability_zones   = ["us-east-1a", "us-east-1b"]
+# Demo default: workers in public subnets, no NAT GW (saves ~$32/mo)
+# Production: set to true → workers in private subnets behind a NAT GW
+use_private_subnets  = false
+nat_gateway_per_az   = false   # only matters if use_private_subnets = true
+
+# --- Worker capacity ---
+task_cpu             = 512    # 0.5 vCPU  (256 / 512 / 1024 / 2048 / 4096)
+task_memory          = 1024   # 1 GB
+min_capacity         = 1      # keep one warm task for fast first-meeting response
+max_capacity         = 20     # ~320 concurrent meetings at 16/task
+cpu_target_utilization = 50   # ECS target tracking — scale when CPU > 50%
+
+# --- Worker tuning (passed as container env vars) ---
+eventloop_threads          = 2
+callback_executor_workers  = 16
+transcript_flush_interval  = 30
+log_level                  = "INFO"
+
+# --- Fargate Spot vs on-demand mix ---
+# Pure Spot (cheapest, demo-friendly):
+spot_weight     = 1
+ondemand_weight = 0
+# Mixed (production-ish: 4 Spot to 1 on-demand baseline):
+# spot_weight     = 4
+# ondemand_weight = 1
+
+# --- Storage ---
+transcript_bucket_force_destroy = true   # set to false in production
+log_retention_days              = 30     # CloudWatch Logs
+
+# --- Cost guardrail ---
+monthly_budget_usd  = 50
+budget_alert_email  = "your-email@example.com"
+
+# --- Tagging (applied to all resources) ---
+tags = {
+  Project     = "rtms-demo"
+  Owner       = "platform-team"
+  CostCenter  = "rnd"
+  Environment = "demo"
+}
