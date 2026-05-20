@@ -43,7 +43,7 @@ Accounts / external assets:
 ## Quick Start
 
 ```bash
-git clone https://github.com/<owner>/rtms-terraform-aws.git
+git clone https://github.com/zoom/rtms-terraform-aws.git
 cd rtms-terraform-aws
 ./deploy.sh
 ```
