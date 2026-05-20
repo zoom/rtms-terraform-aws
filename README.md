@@ -176,6 +176,8 @@ The same `worker/main.py` runs locally. Two env-file templates are committed:
 
 `main.py` loads `.env` first, then `.env.development` overrides — so the dev file always wins locally and you can't accidentally use prod credentials when developing. Both real files are gitignored. In Fargate neither exists; secrets come from Secrets Manager.
 
+> **`.env` files are local-only.** In production (Fargate, EC2, Kubernetes, anywhere customer-facing), secrets must come from AWS Secrets Manager via the ECS task definition's `secrets` block — never baked into a Docker image, never copied onto a server, never committed to git. The Terraform in this repo wires Secrets Manager → ECS automatically; `deploy.sh` handles populating Secrets Manager from your input (or detects existing entries by name and re-uses them).
+
 Point an ngrok tunnel at port 8080 to receive Zoom webhooks locally.
 
 ---
@@ -244,7 +246,7 @@ Reference: [zoom/rtms-samples/rtms_api/reconnection_and_chaos_mode_js](https://g
 - **Public-subnet workers.** Saves ~$32/mo NAT GW cost. Security group locks ingress to the ALB. For private subnets + NAT, set `use_private_subnets = true`.
 - **Fargate Spot.** ~70% cheaper, but tasks can be reclaimed with 2-minute notice. Mix Spot + on-demand via `spot_weight` / `ondemand_weight` for a stable baseline.
 - **One S3 PUT per transcript chunk.** Simple to reason about, but produces lots of small objects. Production fix: buffer ~30s in memory and PUT a multi-line JSONL, or stream to Kinesis Firehose.
-- **In-process webhook dedup.** Resets on task restart. Cross-task dedup would need DynamoDB or ElastiCache — but the rtms SDK rejects duplicate joins anyway, so this is belt-and-suspenders.
+- **All meeting state lives in worker memory.** This is the most important trade-off to understand. The worker keeps three in-process maps for each active stream — the `rtms.Client` instances (`clients`), the cached webhook payloads used for reconnection (`stream_payloads`), and per-stream reconnect-attempt counters (`reconnect_attempt`). Plus the in-process webhook dedup table. **All of these are lost on task restart.** If a Fargate task crashes mid-meeting (Spot reclaim, OOM, AZ blip), the in-flight meeting drops — the next webhook for that stream lands on a fresh task with no record of the previous join, and Zoom's join signature is time-bound so re-joining isn't always possible. Production fix: SQS-replay architecture where webhook ingest is decoupled from the worker fleet (see [spec.md → Future Work](spec.md)). Cross-task dedup would similarly need DynamoDB / ElastiCache — but the rtms SDK rejects duplicate joins anyway, so per-task dedup is belt-and-suspenders.
 
 
 ---
