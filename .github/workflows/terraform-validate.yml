@@ -1,0 +1,58 @@
+name: terraform-validate
+
+on:
+  pull_request:
+    paths:
+      - "**.tf"
+      - ".github/workflows/terraform-validate.yml"
+      - "scripts/validate-terraform.sh"
+  push:
+    branches: [main]
+    paths:
+      - "**.tf"
+      - ".github/workflows/terraform-validate.yml"
+      - "scripts/validate-terraform.sh"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (root, no backend)
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate (root)
+        run: terraform validate -no-color
+
+      - name: terraform validate (modules)
+        run: |
+          set -e
+          for d in modules/*/; do
+            [ -f "${d}main.tf" ] || continue
+            echo "==> validating ${d}"
+            (cd "$d" && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color)
+          done
+
+  tflint:
+    runs-on: ubuntu-latest
+    continue-on-error: true   # tflint findings are advisory until policies are tightened
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      - run: tflint --init
+      - run: tflint --recursive --format compact
