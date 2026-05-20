@@ -43,14 +43,6 @@ updates:
       - terraform
 
   - package-ecosystem: terraform
-    directory: /modules/secrets
-    schedule:
-      interval: weekly
-    labels:
-      - dependencies
-      - terraform
-
-  - package-ecosystem: terraform
     directory: /modules/observability
     schedule:
       interval: weekly

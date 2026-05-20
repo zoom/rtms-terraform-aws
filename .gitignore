@@ -37,6 +37,11 @@ venv/
 .vscode/
 *.swp
 
+# Agent-tool caches and session data (Claude Code, Cursor, Aider, etc.)
+.claude/
+.cursor/
+.aider*
+
 dist/
 build/
 
