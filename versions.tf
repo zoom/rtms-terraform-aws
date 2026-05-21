@@ -20,7 +20,9 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
+  # Merge the Environment tag in last so var.environment always wins,
+  # even if a caller passes a different Environment value in var.tags.
   default_tags {
-    tags = var.tags
+    tags = merge(var.tags, { Environment = var.environment })
   }
 }
