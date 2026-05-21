@@ -33,9 +33,9 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-# Load .env (or .env.development) for local dev. Searches the script's dir
-# (worker/) first, then the project root. Skipped under pytest so tests
-# don't pick up the developer's real credentials from .env.development.
+# Load .env for local dev. Searches the script's dir (worker/) first, then
+# the project root. Skipped under pytest so tests don't pick up the
+# developer's real credentials.
 if "pytest" not in sys.modules:
     try:
         from pathlib import Path
@@ -44,8 +44,6 @@ if "pytest" not in sys.modules:
         for _dir in (_here, _here.parent):
             if (_dir / ".env").exists():
                 load_dotenv(_dir / ".env")
-            if (_dir / ".env.development").exists():
-                load_dotenv(_dir / ".env.development", override=True)
     except ImportError:
         pass
 

@@ -167,14 +167,7 @@ pip install -r requirements-dev.txt                  # or: uv pip install -r req
 pytest                                               # 48 tests, ~1 second
 ```
 
-The same `worker/main.py` runs locally. Two env-file templates are committed:
-
-| File | When to use it |
-|---|---|
-| [.env.development.example](.env.development.example) | Local dev. `progressive` SDK logs, `DEBUG` Python logs, faster reconnect backoff. Copy to `.env.development`. |
-| [.env.example](.env.example) | Production-shaped. `json` SDK logs for CloudWatch, `INFO` Python logs. Copy to `.env`. |
-
-`main.py` loads `.env` first, then `.env.development` overrides — so the dev file always wins locally and you can't accidentally use prod credentials when developing. Both real files are gitignored. In Fargate neither exists; secrets come from Secrets Manager.
+The same `worker/main.py` runs locally. Copy [.env.example](.env.example) to `.env` and fill in your credentials. The file is annotated with `# DEV: <value>` comments next to the lines that should be flipped for local development — `progressive` SDK logs, `DEBUG` Python logs, on-disk transcripts, smaller pools, faster reconnect. Leave the production-shape values as-is when you want a CloudWatch-bound test run. `.env` is gitignored. In Fargate no `.env` file exists; secrets come from Secrets Manager.
 
 > **`.env` files are local-only.** In production (Fargate, EC2, Kubernetes, anywhere customer-facing), secrets must come from AWS Secrets Manager via the ECS task definition's `secrets` block — never baked into a Docker image, never copied onto a server, never committed to git. The Terraform in this repo wires Secrets Manager → ECS automatically; `deploy.sh` handles populating Secrets Manager from your input (or detects existing entries by name and re-uses them).
 
@@ -277,8 +270,7 @@ rtms-terraform-aws/
 ├── docs/
 │   └── MANUAL_SETUP.md      # step-by-step walkthrough (what deploy.sh automates)
 ├── terraform.tfvars.example # all inputs documented
-├── .env.example             # container env-var contract (local dev)
-├── .env.development.example # local-dev variant with debug-friendly defaults
+├── .env.example             # worker env-var contract (prod-shape with DEV: overrides)
 ├── main.tf / variables.tf / outputs.tf / versions.tf
 ├── modules/                 # network, alb, worker, storage, observability
 ├── worker/                  # Python RTMS consumer (Dockerfile + main.py + tests)

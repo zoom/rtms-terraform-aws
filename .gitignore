@@ -1,7 +1,6 @@
 .env
 .env.*
 !.env.example
-!.env.development.example
 terraform.tfvars
 terraform.tfvars.bak*
 *.tfvars
