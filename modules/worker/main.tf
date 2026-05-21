@@ -140,7 +140,7 @@ resource "aws_ecs_task_definition" "worker" {
     environment = [
       { name = "TRANSCRIPT_BACKEND", value = "s3" },
       { name = "TRANSCRIPT_BUCKET", value = var.transcript_bucket },
-      { name = "AWS_REGION", value = data.aws_region.current.name },
+      { name = "AWS_REGION", value = data.aws_region.current.region },
       { name = "ZM_RTMS_HOST", value = var.zoom_host },
       { name = "EVENTLOOP_THREADS", value = tostring(var.eventloop_threads) },
       { name = "CALLBACK_EXECUTOR_WORKERS", value = tostring(var.callback_executor_workers) },
@@ -162,7 +162,7 @@ resource "aws_ecs_task_definition" "worker" {
       logDriver = "awslogs"
       options = {
         awslogs-group         = aws_cloudwatch_log_group.worker.name
-        awslogs-region        = data.aws_region.current.name
+        awslogs-region        = data.aws_region.current.region
         awslogs-stream-prefix = "ecs"
       }
     }

@@ -97,7 +97,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric", width = 12, height = 6, x = 0, y = 0
         properties = {
           title  = "ALB Requests + 5xx"
-          region = data.aws_region.current.name
+          region = data.aws_region.current.region
           metrics = [
             ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix],
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.alb_arn_suffix],
@@ -111,7 +111,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric", width = 12, height = 6, x = 12, y = 0
         properties = {
           title  = "ECS — CPU + Memory"
-          region = data.aws_region.current.name
+          region = data.aws_region.current.region
           metrics = [
             ["AWS/ECS", "CPUUtilization", "ClusterName", var.ecs_cluster_name, "ServiceName", var.ecs_service_name],
             ["AWS/ECS", "MemoryUtilization", "ClusterName", var.ecs_cluster_name, "ServiceName", var.ecs_service_name],
@@ -125,7 +125,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric", width = 12, height = 6, x = 0, y = 6
         properties = {
           title  = "ALB — Healthy Hosts"
-          region = data.aws_region.current.name
+          region = data.aws_region.current.region
           metrics = [
             ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix],
             ["AWS/ApplicationELB", "UnHealthyHostCount", "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix],
