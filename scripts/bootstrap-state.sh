@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+# Disable AWS CLI v2 pager so JSON output goes straight to stdout instead of
+# blocking on `less` for the user to press q.
+export AWS_PAGER=""
+
 AWS_REGION="${AWS_REGION:-us-east-1}"
 PROJECT_NAME="${PROJECT_NAME:-rtms-demo}"
 BUCKET="${PROJECT_NAME}-tfstate-$(aws sts get-caller-identity --query Account --output text)"

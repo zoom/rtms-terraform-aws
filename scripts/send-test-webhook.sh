@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+# Disable AWS CLI v2 pager so JSON output goes straight to stdout instead of
+# blocking on `less` for the user to press q.
+export AWS_PAGER=""
+
 : "${WEBHOOK_URL:?WEBHOOK_URL must be set (e.g. https://rtms.example.com)}"
 : "${ZM_RTMS_WEBHOOK_SECRET:?ZM_RTMS_WEBHOOK_SECRET must be set}"
 

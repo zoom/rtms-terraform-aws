@@ -19,6 +19,10 @@
 
 set -euo pipefail
 
+# Disable AWS CLI v2 pager so JSON output goes straight to stdout instead of
+# blocking on `less` for the user to press q.
+export AWS_PAGER=""
+
 cd "$(dirname "$0")/.."
 
 # ── inputs ───────────────────────────────────────────────────────────────────
