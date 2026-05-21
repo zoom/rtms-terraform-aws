@@ -23,6 +23,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
+# Disable AWS CLI v2's interactive pager. Without this, `aws s3api head-bucket`
+# and similar JSON-returning commands pipe through `less`, blocking the script
+# until the user hits 'q'. The empty value tells the CLI to write to stdout.
+# Inherits to every subprocess (bootstrap-state.sh, etc.) because we `export`.
+export AWS_PAGER=""
+
 # ── colors ───────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then
   C_RESET=$'\033[0m'; C_DIM=$'\033[2m'; C_BOLD=$'\033[1m'
@@ -31,12 +37,16 @@ else
   C_RESET=; C_DIM=; C_BOLD=; C_OK=; C_WARN=; C_ERR=; C_INFO=
 fi
 
-step()  { printf "\n${C_BOLD}${C_INFO}==>${C_RESET} ${C_BOLD}%s${C_RESET}\n" "$*"; }
-ok()    { printf "${C_OK}✓${C_RESET} %s\n" "$*"; }
-warn()  { printf "${C_WARN}!${C_RESET} %s\n" "$*"; }
+# All UI helpers write to stderr. Status messages aren't data — and routing
+# them to stdout would pollute any command-substitution capture like
+#   arn=$(create_or_get_secret ...)
+# (we'd capture the "✓ created ..." status line along with the ARN).
+step()  { printf "\n${C_BOLD}${C_INFO}==>${C_RESET} ${C_BOLD}%s${C_RESET}\n" "$*" >&2; }
+ok()    { printf "${C_OK}✓${C_RESET} %s\n" "$*" >&2; }
+warn()  { printf "${C_WARN}!${C_RESET} %s\n" "$*" >&2; }
 fail()  { printf "${C_ERR}✗${C_RESET} %s\n" "$*" >&2; exit 1; }
-info()  { printf "${C_DIM}%s${C_RESET}\n" "$*"; }
-hr()    { printf "${C_DIM}%s${C_RESET}\n" "──────────────────────────────────────────────────────────────"; }
+info()  { printf "${C_DIM}%s${C_RESET}\n" "$*" >&2; }
+hr()    { printf "${C_DIM}%s${C_RESET}\n" "──────────────────────────────────────────────────────────────" >&2; }
 
 # ── prompt helpers ───────────────────────────────────────────────────────────
 prompt() {
@@ -134,6 +144,26 @@ EOF
 TFVARS=terraform.tfvars
 read_existing() {
   step "Reading existing terraform.tfvars (if present)"
+
+  # Initialize every variable we'll read or check later, so `set -u` (nounset)
+  # doesn't blow up when tfvars is missing or doesn't contain a given key.
+  # `${VAR:=}` sets VAR to empty if it's currently unset.
+  : "${AWS_REGION:=}"
+  : "${PROJECT_NAME:=}"
+  : "${WEBHOOK_DOMAIN:=}"
+  : "${DNS_MODE:=}"
+  : "${ROUTE53_ZONE_ID:=}"
+  : "${ACM_CERT_ARN:=}"
+  : "${WORKER_IMAGE:=}"
+  : "${BUDGET_EMAIL:=}"
+  : "${ZM_CLIENT_ARN:=}"
+  : "${ZM_SECRET_ARN:=}"
+  : "${ZM_WEBHOOK_ARN:=}"
+  : "${SKIP_SECRETS:=0}"
+  : "${ZM_CLIENT_VAL:=}"
+  : "${ZM_SECRET_VAL:=}"
+  : "${ZM_WEBHOOK_VAL:=}"
+
   if [ ! -f "$TFVARS" ]; then
     info "No existing terraform.tfvars — starting fresh."
     return
@@ -142,9 +172,13 @@ read_existing() {
   ok "Found existing $TFVARS — values used as defaults; press Enter to keep, or type new"
 
   # Extract a value from terraform.tfvars given a key name.
+  # POSIX `[[:space:]]` instead of `\s` — BSD sed/grep on macOS don't honor `\s`
+  # in -E mode, which would leave leading whitespace + surrounding quotes
+  # intact and corrupt every downstream value (region, ARNs, etc.).
   tf_get() {
-    grep -E "^\s*${1}\s*=" "$TFVARS" | head -1 \
-      | sed -E 's/^[^=]*=\s*//; s/^"(.*)"$/\1/; s/[[:space:]]*$//'
+    grep -E "^[[:space:]]*${1}[[:space:]]*=" "$TFVARS" | head -1 \
+      | sed -E 's/^[^=]*=[[:space:]]*//; s/^"(.*)"$/\1/; s/[[:space:]]*$//' \
+      || true
   }
 
   AWS_REGION="${AWS_REGION:-$(tf_get aws_region)}"
@@ -213,7 +247,9 @@ prompt_inputs() {
     info "  (delete those entries from terraform.tfvars and re-run to re-prompt)"
     SKIP_SECRETS=1
   else
-    info "Paste these from your Zoom Marketplace RTMS app:"
+    info "Paste these from your Zoom Marketplace RTMS app."
+    info "Input is hidden for security — nothing will appear as you type or paste."
+    info "Press Enter after each value."
     prompt_secret ZM_CLIENT_VAL "  ZM_RTMS_CLIENT"
     prompt_secret ZM_SECRET_VAL "  ZM_RTMS_SECRET"
     prompt_secret ZM_WEBHOOK_VAL "  ZM_RTMS_WEBHOOK_SECRET"
