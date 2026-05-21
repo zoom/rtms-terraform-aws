@@ -1,6 +1,6 @@
 # RTMS on AWS: Terraform Template
 
-Deploy a scalable Zoom **RealTime Media Streaming (RTMS)** consumer to AWS in one command. Same shape as the [`rtms-quickstart-py`](https://github.com/zoom/rtms-quickstart-py) repo — `@rtms.on_webhook_event` + `rtms.run()` packaged into a Fargate container, fronted by an ALB, and configured to auto-scale.
+Deploy a scalable Zoom **RealTime Media Streams (RTMS)** consumer to AWS in one command. Same shape as the [`rtms-quickstart-py`](https://github.com/zoom/rtms-quickstart-py) repo — `@rtms.on_webhook_event` + `rtms.run()` packaged into a Fargate container, fronted by an ALB, and configured to auto-scale.
 
 ---
 
