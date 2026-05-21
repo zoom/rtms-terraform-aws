@@ -9,6 +9,7 @@ terraform.tfvars.bak*
 *.bak.[0-9]*
 
 .terraform/
+modules/*/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
